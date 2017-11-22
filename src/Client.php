@@ -39,7 +39,7 @@ class Client implements LoggerAwareInterface
      *                if we make a subsequent request to a different node in the same session, that the node waits until it is at least
      *                up to date with the commits as the node we originally queried.
      */
-    private static $commitCount = [];
+    private $commitCount = 0;
 
     /**
      * @var null|string Name of the bedrock cluster we are talking to. If you have more than one bedrock cluster, you
@@ -115,7 +115,7 @@ class Client implements LoggerAwareInterface
      *
      * @throws BedrockError
      */
-    public function __construct(array $config = [])
+    private function __construct(array $config = [])
     {
         $config = array_merge(self::$defaultConfig, $config);
         $this->clusterName = $config['clusterName'];
@@ -133,6 +133,31 @@ class Client implements LoggerAwareInterface
         if (empty($this->mainHostConfigs)) {
             throw new BedrockError('Main hosts are not set, cannot instantiate bedrock client');
         }
+    }
+
+    public static function open(array $config = [])
+    {
+        // See if we already have an object with this configuration
+        $hash = sha1(print_r($config, TRUE));
+        $bedrock = @$openClientArray[$hash];
+        if ($bedrock) {
+            // Found it, reuse it
+            $bedrock->logger->info('Bedrock\Client - Reusing existing connection');
+            return $bedrock;
+        }
+
+        // Otherwise create a new one
+        $bedrock = new Client($config);
+        $openClientArray[$hash] = $bedrock;
+        $bedrock->logger->info('Bedrock\Client - Creating new connection');
+        return $bedrock;
+    }
+
+    public function clearSocket()
+    {
+        // Clear the socket such that we will reconnect on next attempt
+        $this->logger->info('Bedrock\Client - Clearing our socket');
+        $this->socket = null;
     }
 
     public function __destruct()
@@ -218,8 +243,8 @@ class Client implements LoggerAwareInterface
         $timeStart = microtime(true);
 
         // Include the last CommitCount, if we have one
-        if (isset(self::$commitCount[$this->clusterName])) {
-            $headers['commitCount']  = self::$commitCount[$this->clusterName];
+        if ($this->commitCount) {
+            $headers['commitCount']  = $this->commitCount;
         }
 
         // Include the requestID for logging purposes
@@ -479,7 +504,7 @@ class Client implements LoggerAwareInterface
         // If we received the commitCount, then save it for future requests. This is useful if for some reason we
         // change the bedrock node we are talking to.
         if (isset($responseHeaders["commitCount"])) {
-            self::$commitCount[$this->clusterName] = $responseHeaders["commitCount"];
+            $this->commitCount = $responseHeaders["commitCount"];
         }
 
         return [
