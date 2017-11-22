@@ -35,6 +35,12 @@ class Client implements LoggerAwareInterface
     private static $defaultConfig = [];
 
     /**
+     * @var array This contains a set of all Client objects that have been opened by this process in the past, keyed
+     *            using a SHA1 hash of the configuration object.
+     */
+    private static $openClientArray = [];
+
+    /**
      *  @var string[] The last commit count of the node we talked to, keyed by the cluster name. This is used to ensure
      *                if we make a subsequent request to a different node in the same session, that the node waits until it is at least
      *                up to date with the commits as the node we originally queried.
