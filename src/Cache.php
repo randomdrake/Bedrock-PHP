@@ -9,12 +9,11 @@ use Expensify\Bedrock\Exceptions\ConnectionFailure;
  *
  * @see https://github.com/Expensify/Bedrock/blob/master/plugins/Cache.md
  */
-class Cache extends Plugin
-{
+class Cache extends Plugin {
     /**
      * Store if the cache is available and functional.
      *
-     * @var bool
+     * @var string
      */
     private static $hasFailed = false;
 
